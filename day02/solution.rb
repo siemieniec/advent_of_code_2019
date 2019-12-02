@@ -1,7 +1,7 @@
-def input
+def input(noun, verb)
   File.open('input').read.split(',').map(&:to_i).tap do |input|
-    input[1] = 12
-    input[2] = 2
+    input[1] = noun
+    input[2] = verb
   end
 end
 
@@ -20,9 +20,13 @@ def part1(input)
   input[0]
 end
 
-def part2(input)
-  input.inspect
+def part2
+  (0..99).each do |noun|
+    (0..99).each do |verb|
+      return 100 * noun + verb if part1(input(noun, verb)) == 19690720
+    end
+  end
 end
 
-puts "Part 01: #{part1(input)}"
-puts "Part 02: #{part2(input)}"
+puts "Part 01: #{part1(input(12, 2))}"
+puts "Part 02: #{part2}"
