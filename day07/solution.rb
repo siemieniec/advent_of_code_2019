@@ -1,28 +1,18 @@
 class Amplifier
-  attr_reader :last_output
-
-  def initialize
+  def initialize(registers)
     @instructions = instructions
     @position = 0
-    @last_output = nil
-    @state = :processing
+    @registers = registers
   end
 
-  def process(register)
-    while true
-      puts @state
-      case @state
-      when :wait
-        return @last_output
-      when :finished
-        return @last_output
-      else
-        step(register)
-      end
-    end
+  def process
+    step while @state != :finished
+    @registers.last
   end
 
-  def step(register)
+  private
+
+  def step
     _, mode2, mode1, op = parse_op(@instructions[@position])
     param1 = mode1 == '1' ? (@position + 1) : @instructions[@position + 1]
     param2 = mode2 == '1' ? (@position + 2) : @instructions[@position + 2]
@@ -38,11 +28,15 @@ class Amplifier
       @position += 4
     when '03'
       output = @instructions[@position + 1]
-      @instructions[output] = register
-      @position += 2
+      if @registers.empty?
+        @state = :waiting
+      else
+        @instructions[output] = @registers.shift
+        @position += 2
+      end
     when '04'
       output = @instructions[@position + 1]
-      @last_output = @instructions[output]
+      @registers.push @instructions[output]
       @position += 2
     when '05'
       @position = @instructions[param1] != 0 ? @instructions[param2] : @position + 3
@@ -61,8 +55,6 @@ class Amplifier
     end
   end
 
-  private
-
   def parse_op(op)
     op = '%05d' % op
     [op[0], op[1], op[2], op[3..4]]
@@ -73,44 +65,28 @@ class Amplifier
   end
 end
 
-
-
-
 def part1
   [0, 1, 2, 3, 4].permutation.map do |phase|
-    amp_a = Amplifier.new
-    amp_b = Amplifier.new
-    amp_c = Amplifier.new
-    amp_d = Amplifier.new
-    amp_e = Amplifier.new
-    result = amp_a.process(0)
-    result = amp_a.process(phase[0])
-    result = amp_b.process(result)
-    result = amp_b.process(phase[1])
-    result = amp_c.process(result)
-    result = amp_c.process(phase[2])
-    result = amp_d.process(result)
-    result = amp_d.process(phase[3])
-    result = amp_e.process(result)
-    result = amp_e.process(phase[4])
-    amp_e.last_output
-  end.max_by { |result| result[0] }
+    amp_a = Amplifier.new([phase[0], 0])
+    amp_b = Amplifier.new([phase[1], amp_a.process])
+    amp_c = Amplifier.new([phase[2], amp_b.process])
+    amp_d = Amplifier.new([phase[3], amp_c.process])
+    Amplifier.new([phase[4], amp_d.process]).process
+  end.max
 end
 
 def part2
   [5, 6, 7, 8, 9].permutation.map do |phase|
-    puts phase.inspect
-    amp = 0
-    results = []
-    phase.cycle do |p|
-      puts [amp, p].inspect
-      amp = intcode_comp(input, [amp, p])
-      break if results.include? amp
-      results << amp if p == phase[4]
-    end
-    results.max
+    amp_a = Amplifier.new([phase[0], 0])
+    amp_b = Amplifier.new([phase[1], amp_a.process])
+    amp_c = Amplifier.new([phase[2], amp_b.process])
+    amp_d = Amplifier.new([phase[3], amp_c.process])
+    amp_e = Amplifier.new([phase[4], amp_d.process])
+
+    return result_e if amp_e.finished?
   end
 end
 
 puts "Part 01: #{part1}"
 #puts "Part 02: #{part2}"
+
